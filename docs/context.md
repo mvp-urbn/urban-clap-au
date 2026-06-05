@@ -56,11 +56,13 @@ Silver 1.0× · Gold 1.4× · Pro 1.8× · All prices AUD incl. GST
 4. ~~Email confirmation after booking~~ ✓ done (Resend — add real API key to activate)
 5. ~~Admin dispatch console~~ ✓ done (PIN-protected, SMS dispatch, status updates)
 6. ~~Customer review / star rating~~ ✓ done (reviews table, ReviewForm component)
-7. Full admin dashboard (`/admin`) — stats, revenue, all-bookings table across statuses
-8. Supabase Realtime in dispatch console (auto-refresh without clicking Refresh)
+7. ~~Full admin dashboard (`/admin`)~~ ✓ done (stats row, filter tabs, all-bookings table, inline status actions)
+8. ~~Supabase Realtime in dispatch console~~ ✓ done (auto-refresh without clicking Refresh)
 9. Contractor job accept/reject flow
-10. Production deployment (Vercel + Supabase prod)
-11. Resend domain verification — `onboarding@resend.dev` only delivers to Resend account email
+10. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
+11. ~~Resend domain verification~~ ✓ done — confirmation emails now deliver to real customers
+12. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
+13. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
 
 ---
 
@@ -223,3 +225,32 @@ grant all on public.reviews to service_role;
 4. Update `NEXT_PUBLIC_APP_URL` on Vercel to final production domain once assigned
 5. Resend domain verification → send emails to real customers (not just Resend account email)
 6. Connect GitHub repo to Vercel project (currently deploying via local CLI upload, not Git push)
+
+### 2026-06-06 — Session 7
+
+**GitHub credential fix**
+- macOS Keychain had stale PAT cached — push was returning "Repository not found"
+- Fixed: set remote URL with new PAT, pushed successfully, restored clean remote URL
+- `git push origin main` now works — repo and Vercel are in sync
+
+**Supabase Realtime enabled**
+- In Supabase Dashboard → Database → Replication → toggled `bookings` table ON
+- Dispatch console now auto-refreshes live without clicking Refresh
+
+**Resend domain verification**
+- Verified sending domain in Resend dashboard (resend.com/domains)
+- Added DNS records (SPF, DKIM, DMARC) to domain registrar
+- Updated `RESEND_FROM_EMAIL` in `.env.local` to `bookings@[verified-domain]`
+- Added `RESEND_FROM_EMAIL` to Vercel env vars via CLI → redeployed
+- Confirmation emails now deliver to real customer inboxes
+
+**Vercel ↔ GitHub auto-deploy connected**
+- Connected `mvp-urbn/urban-clap-au` GitHub repo to Vercel project via Vercel Dashboard → Settings → Git
+- Every push to `main` now triggers automatic production deployment
+- No more manual `vercel --prod` CLI uploads needed
+
+**Left off:**
+1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment (est. 5 min)
+2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed (est. 30 min)
+3. Contractor job accept/reject flow
+4. Update `NEXT_PUBLIC_APP_URL` on Vercel to `https://urban-clap-au.vercel.app` if not already set
