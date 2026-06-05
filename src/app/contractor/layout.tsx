@@ -24,12 +24,6 @@ export default function ContractorLayout({ children }: { children: React.ReactNo
             >
               My Jobs
             </Link>
-            <Link
-              href="/bookings"
-              className="text-sm font-semibold text-slate-400 hover:text-slate-600 transition"
-            >
-              Customer View
-            </Link>
           </div>
         </div>
       </nav>
