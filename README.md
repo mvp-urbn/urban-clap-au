@@ -2,10 +2,24 @@
 
 A fixed-price, tiered home cleaning booking platform for the Australian market. Built as a lean "Wizard of Oz" MVP — customers book online, operations are handled manually via an admin dispatch console.
 
+Production: **https://urban-clap-au.vercel.app**
+
+---
+
+## Project Status
+
+| Portal Module | Current MVP Build State | Core Features Operational |
+| :--- | :--- | :--- |
+| **Customer Portal** | 🟩 **FULLY FUNCTIONAL** | Multistep service selection (Home Cleaning), address/postcode mapping, dynamic tiered pricing (Silver/Gold/Pro), Stripe checkout, booking history, star reviews. |
+| **Admin Portal** | 🟩 **FULLY FUNCTIONAL** | Live dispatch console (`/admin/dispatch`) with Supabase Realtime auto-refresh, full admin dashboard (`/admin`) with revenue stats, filter tabs, inline status actions. |
+| **Contractor Portal** | 🟥 **NOT BUILT YET** | Target area for next sprint. Needs onboarding compliance (ABN, insurance upload) and 3-step proof of work loop. |
+
+---
+
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript)
-- **Supabase** — PostgreSQL, Auth, Row Level Security
+- **Supabase** — PostgreSQL, Auth, Row Level Security, Realtime
 - **Stripe Elements** — payment scaffold (test mode)
 - **Resend** — transactional email
 - **Tailwind CSS v4**
@@ -18,7 +32,8 @@ A fixed-price, tiered home cleaning booking platform for the Australian market. 
 - Inline auth gate at checkout — booking state preserved across sign in
 - Customer "My Bookings" dashboard with status tracking
 - Star rating + review form on completed bookings
-- PIN-protected admin dispatch console with SMS copy-paste workflow
+- PIN-protected admin dispatch console with SMS copy-paste workflow and Supabase Realtime auto-refresh
+- Full admin dashboard with revenue stats, filter tabs, and inline status actions
 - Test data seed endpoint for demo flow without Stripe
 
 ## Pricing
@@ -28,6 +43,64 @@ A fixed-price, tiered home cleaning booking platform for the Australian market. 
 Silver 1.0× · Gold 1.4× · Pro 1.8×
 All prices AUD incl. GST
 ```
+
+---
+
+## Codebase Rules
+
+1. **Do Not Break Existing Flows:** The customer checkout journey and current admin dashboard work perfectly. Do not rewrite, delete, or modify code in those active directories unless explicitly asked.
+2. **Monetary Integer Rule:** All currency variables, margins, and pricing constants must be stored in the database exclusively as **integers representing cents** (e.g., $150.00 AUD = `15000`).
+3. **State Machine Sequence:** Bookings must advance through this strict atomic state flow:
+   `pending_dispatch` → `assigned` → `arrived` → `in_progress` → `completed` → `cancelled`
+
+---
+
+## Project Directory Structure
+
+```text
+src/
+├── app/
+│   ├── page.tsx                  # Landing page (Cleaning active, others greyed out)
+│   ├── book/                     # 5-step booking funnel
+│   ├── bookings/                 # Customer booking history & review flow
+│   ├── auth/                     # Login, sign up, OAuth callback
+│   │
+│   ├── admin/                    # EXISTING: Administrative control deck
+│   │   ├── page.tsx              # Full dashboard — stats, revenue, all bookings
+│   │   ├── AdminDashboard.tsx    # Client component with filter tabs + status actions
+│   │   ├── login/                # PIN entry page
+│   │   └── dispatch/             # Live dispatch console with Realtime auto-refresh
+│   │
+│   ├── contractor/               # 🆕 TO BE BUILT: Isolated supply portal
+│   │   ├── onboarding/           # ABN, identity, and insurance PDF uploading
+│   │   ├── dashboard/            # Jobs available board & earnings metrics
+│   │   └── jobs/
+│   │       └── [id]/             # Live tracking: Geofence, Customer OTP, Before/After upload
+│   │
+│   └── api/                      # Stripe webhooks & backend route handlers
+│
+├── components/
+│   ├── booking/                  # EXISTING: Booking funnel step components
+│   ├── contractor/               # 🆕 TO BE BUILT: Geofence button, camera picker, OTP card
+│   └── ui/                       # Shared design primitives
+│
+├── hooks/
+│   ├── usePricingCalculator.ts   # EXISTING: Cent-integer pricing engine
+│   └── useGeofence.ts            # 🆕 TO BE BUILT: navigator.geolocation distance utility
+│
+├── lib/
+│   ├── supabase/                 # client.ts, server.ts, admin.ts
+│   ├── resend.ts                 # Resend email client
+│   └── stripe/                   # Stripe API config
+│
+└── types/
+    └── index.ts                  # Shared TypeScript types and enums
+
+supabase/
+└── schema.sql                    # Full PostgreSQL schema + RLS policies
+```
+
+---
 
 ## Getting Started
 
@@ -89,6 +162,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+---
+
 ## Routes
 
 | Route | Description |
@@ -99,10 +174,13 @@ Open [http://localhost:3000](http://localhost:3000)
 | `/auth/login` | Sign in / sign up |
 | `/auth/callback` | Supabase OAuth callback |
 | `/admin/login` | Admin PIN entry |
-| `/admin/dispatch` | Admin dispatch console |
+| `/admin` | Full admin dashboard — stats, revenue, all bookings |
+| `/admin/dispatch` | Admin dispatch console (Realtime auto-refresh) |
 | `/api/seed` | POST — seed test customer + 2 bookings |
 | `/api/admin-auth` | POST/DELETE — admin cookie auth |
 | `/api/webhooks/stripe` | Stripe webhook (not yet wired) |
+
+---
 
 ## Testing the Full Flow
 
@@ -116,19 +194,20 @@ Open [http://localhost:3000](http://localhost:3000)
 8. Customer: refresh `/bookings` → Gold shows "Completed" + star rating form
 9. Submit a review → read-only star display appears
 
-## Admin Dispatch
+---
 
-- URL: `/admin/dispatch`
+## Admin
+
+- Dashboard: `/admin` — stats row, filter tabs, all bookings table with inline status actions
+- Dispatch: `/admin/dispatch` — live Realtime feed of pending and in-progress jobs
 - PIN: set via `ADMIN_PIN` in `.env.local` (default `0045`)
-- No Supabase account required — cookie-based auth only
-- Cookie TTL: 8 hours
+- No Supabase account required — cookie-based auth only, TTL 8 hours
+
+---
 
 ## What's Next
 
 - [ ] Add real Stripe keys to unlock Step 5 payment
 - [ ] Wire up `/api/webhooks/stripe` to update booking status after payment
-- [ ] Full admin dashboard with stats and revenue tracking
-- [ ] Supabase Realtime for auto-refresh in dispatch console
-- [ ] Contractor job accept/reject flow
-- [ ] Resend domain verification for outbound email
-- [ ] Production deployment on Vercel
+- [ ] Contractor portal — onboarding (ABN, insurance), job board, geofence + OTP proof of work
+- [ ] Resend domain verification for outbound email to real customers
