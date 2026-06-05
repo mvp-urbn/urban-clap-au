@@ -50,19 +50,18 @@ Silver 1.0× · Gold 1.4× · Pro 1.8× · All prices AUD incl. GST
 
 ## What's NOT built yet
 
-1. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
-2. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
-3. ~~Customer "My Bookings" page~~ ✓ done
-4. ~~Email confirmation after booking~~ ✓ done (Resend — add real API key to activate)
-5. ~~Admin dispatch console~~ ✓ done (PIN-protected, SMS dispatch, status updates)
-6. ~~Customer review / star rating~~ ✓ done (reviews table, ReviewForm component)
-7. ~~Full admin dashboard (`/admin`)~~ ✓ done (stats row, filter tabs, all-bookings table, inline status actions)
-8. ~~Supabase Realtime in dispatch console~~ ✓ done (auto-refresh without clicking Refresh)
-9. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
-10. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
-11. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
-12. ~~Contractor portal~~ ✓ done — onboarding, job board, geofence check-in, OTP proof of work
-13. Resend domain verification — needs a domain before emails can reach real customers
+1. ~~Customer "My Bookings" page~~ ✓ done
+2. ~~Email confirmation after booking~~ ✓ done (Resend — add real domain to send to real customers)
+3. ~~Admin dispatch console~~ ✓ done (PIN-protected, SMS dispatch, status updates)
+4. ~~Customer review / star rating~~ ✓ done (reviews table, ReviewForm component)
+5. ~~Full admin dashboard (`/admin`)~~ ✓ done (stats row, filter tabs, all-bookings table, inline status actions)
+6. ~~Supabase Realtime in dispatch console~~ ✓ done (auto-refresh without clicking Refresh)
+7. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
+8. ~~Contractor portal~~ ✓ done — onboarding, job board, GPS check-in, OTP proof of work (Session 8–9)
+9. Stripe setup — add real keys to `.env.local` + Vercel to unlock Step 5 payment (est. 10 min)
+10. Stripe webhook (`/api/webhooks/stripe`) — update booking status after Stripe payment confirmed
+11. Admin contractor approval UI — currently approved via Supabase SQL; needs a UI in `/admin`
+12. Resend domain verification — needs a domain before emails can reach real customers
 
 ---
 
@@ -318,3 +317,46 @@ grant all on public.reviews to service_role;
 3. Admin contractor approval UI in `/admin` dashboard (currently: approve via Supabase SQL)
 4. Push to GitHub + deploy to Vercel
 5. Resend domain verification → real outbound email
+
+### 2026-06-06 — Session 9
+
+**Contractor portal — live testing, bug fixes, and deployment**
+
+**Database fix — profile not found:**
+- The earlier `update profiles set ... where id='<uid>'` returned "Success. No rows returned" because the test customer profile row didn't exist yet (trigger hadn't fired or insert was skipped)
+- Fix: used `insert ... on conflict (id) do update` to upsert the profile
+- Confirmed profile: `role='contractor'`, `contractor_status='approved'`, `abn='12345678901'`, `service_postcodes=["2000","2010"]`
+
+**Vercel deployment fixes:**
+- New Vercel project created under a different team account (`thinkbigger-s-projects`) — abandoned; used existing `tioatrs-projects/urban-clap-au` project instead
+- Build was failing with `Neither apiKey nor config.authenticator provided` — Resend client was initialized at module load time (`new Resend(process.env.RESEND_API_KEY)`), crashing the build when the env var was missing
+- Fixed: converted `resend` export to a `getResend()` factory function (lazy init); updated `bookings.ts` to call `getResend().emails.send(...)` instead of `resend.emails.send(...)`
+- Deployment from CLI: `npx vercel --prod --yes` — 15 routes, build clean
+
+**OTP crash fix (production):**
+- When contractor entered an OTP and the booking had no `checkin_otp` set (assigned via SQL, not admin dispatch), `verifyJobOtp` threw an error
+- In Next.js production, thrown server action errors show the generic "Server Components render" crash page instead of an inline message
+- Fixed: changed `verifyJobOtp` to return `{ success: boolean; error?: string }` instead of throwing — client component reads the return value and sets `otpError` state inline
+- OTP was set manually via SQL (`update bookings set checkin_otp = '123456' where ...`) for testing
+
+**UX fix — contractor nav:**
+- Removed "Customer View" link from contractor layout nav — contractors and customers are separate people with separate accounts
+- Contractor nav now only shows "My Jobs"
+
+**Role separation clarified:**
+- Same Supabase account was used for both customer and contractor testing (testcustomer@urbanclap.test / TestPass123!)
+- In production: customers and contractors are different people with separate accounts
+- Contractor test account: `testcustomer@urbanclap.test` / `TestPass123!` (profile set to role='contractor', contractor_status='approved')
+- To test customer flow: sign up a fresh account at `/auth/login`
+
+**Deployment:**
+- All fixes committed and pushed to `mvp-urbn/urban-clap-au` (main)
+- Deployed to `https://urban-clap-au.vercel.app` via `npx vercel --prod --yes`
+- 15 routes live, zero TypeScript errors
+
+**Left off:**
+1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment
+2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed
+3. Admin contractor approval UI in `/admin` dashboard (currently: approve via Supabase SQL)
+4. Resend domain verification → real outbound email (needs a domain)
+5. GitHub → Vercel auto-deploy still not wired (use `npx vercel --prod --yes` from CLI for now)
