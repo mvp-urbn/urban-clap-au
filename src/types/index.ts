@@ -6,6 +6,8 @@ export type BookingStatus =
   | 'completed'
   | 'cancelled';
 
+export type ContractorStatus = 'pending' | 'approved' | 'suspended';
+
 export interface Profile {
   id: string;
   role: UserRole;
@@ -13,6 +15,11 @@ export interface Profile {
   phone_number: string | null;
   postcode: string | null;
   created_at: string;
+  // Contractor-specific fields
+  abn: string | null;
+  insurance_expiry: string | null;
+  contractor_status: ContractorStatus | null;
+  service_postcodes: string[] | null;
 }
 
 export interface Service {
@@ -38,6 +45,8 @@ export interface Booking {
   total_price_cents: number;
   stripe_payment_intent_id: string | null;
   assigned_contractor_id: string | null;
+  checkin_otp: string | null;
+  checked_in_at: string | null;
   created_at: string;
   // Joined fields
   profiles?: Profile;

@@ -61,7 +61,7 @@ Silver 1.0× · Gold 1.4× · Pro 1.8× · All prices AUD incl. GST
 9. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
 10. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
 11. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
-12. Contractor portal — onboarding (ABN, insurance), job board, geofence + OTP proof of work
+12. ~~Contractor portal~~ ✓ done — onboarding, job board, geofence check-in, OTP proof of work
 13. Resend domain verification — needs a domain before emails can reach real customers
 
 ---
@@ -262,6 +262,59 @@ grant all on public.reviews to service_role;
 **Left off:**
 1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment (est. 5 min)
 2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed (est. 30 min)
-3. Contractor portal — onboarding (ABN, insurance), job board, geofence + OTP proof of work
+3. ~~Contractor portal~~ ✓ done (see Session 8)
 4. Resend domain verification → send emails to real customers (needs a domain first)
 5. GitHub → Vercel auto-deploy (deferred — use `npx vercel --prod --yes` for now)
+
+### 2026-06-06 — Session 8
+
+**Contractor portal — full build**
+
+**SQL additions (`supabase/contractor-schema.sql` — run in Supabase SQL Editor):**
+- `profiles`: added `abn text`, `insurance_expiry date`, `contractor_status text` (pending/approved/suspended), `service_postcodes text[]`
+- `bookings`: added `checkin_otp text`, `checked_in_at timestamptz`
+- New RLS policies: contractors can SELECT and UPDATE bookings where `assigned_contractor_id = auth.uid()`
+
+**OTP generation:**
+- `updateBookingStatus()` now generates a random 6-digit OTP and saves it to `checkin_otp` when status is set to `assigned`
+- Customer sees their OTP code on `/bookings` (teal pill: "Access Code — show this to your cleaner")
+- Admin dispatch "In Progress" cards show the OTP + a check-in timestamp once the contractor arrives
+
+**New server actions (`src/app/actions/contractor.ts`):**
+- `saveContractorOnboarding()` — saves ABN, phone, postcodes, insurance expiry; sets role='contractor', status='pending'
+- `getContractorProfile()` — fetch current user's full profile
+- `getContractorJobs()` — fetch assigned+completed bookings for the current contractor
+- `getContractorJob(id)` — fetch single job (must be assigned to current contractor)
+- `contractorCheckIn(bookingId, lat, lng)` — saves `checked_in_at`; GPS coords passed but not strictly validated (MVP)
+- `verifyJobOtp(bookingId, otp)` — verifies OTP; sets `checked_in_at` if not already set
+
+**New routes (5):**
+- `/contractor` — redirect hub: routes to `/contractor/jobs` (approved), pending message, or `/contractor/onboard`
+- `/contractor/onboard` — onboarding form (ABN, phone, postcodes, insurance expiry); sets role='contractor', status='pending'
+- `/contractor/jobs` — job board: active jobs + completed history, contractor earnings (80% payout shown)
+- `/contractor/jobs/[id]` — job detail: GPS check-in button + 6-digit OTP entry; shows Google Maps link, customer phone
+- `src/app/contractor/layout.tsx` — shared teal nav with "My Jobs" + "Customer View" links
+
+**Auth flow for contractors:**
+- Sign up via existing `/auth/login` (any email), then navigate to `/contractor/onboard`
+- Onboarding updates `profiles.role = 'contractor'` and `contractor_status = 'pending'`
+- Admin approves by setting `contractor_status = 'approved'` directly in Supabase (SQL or Dashboard)
+- Once approved, `/contractor` redirects to job board
+
+**Full contractor test flow:**
+1. Admin → Dispatch Console → Seed Test Data (creates test customer + pending booking)
+2. In Supabase SQL Editor: `update profiles set role='contractor', contractor_status='approved', service_postcodes='{2000}', abn='12345678901' where id='<your-uid>';`
+3. Go to `/contractor/jobs` — see the assigned job
+4. Click job → tap "Check In" → GPS prompt → saved ✓
+5. Customer goes to `/bookings` → sees "Access Code: XXXXXX"
+6. Contractor enters OTP → "OTP verified ✓"
+7. Admin marks job Completed via dispatch
+
+**Build:** `npm run build` passes clean — zero TypeScript errors, 14 routes total.
+
+**Left off:**
+1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment
+2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed
+3. Admin contractor approval UI in `/admin` dashboard (currently: approve via Supabase SQL)
+4. Push to GitHub + deploy to Vercel
+5. Resend domain verification → real outbound email

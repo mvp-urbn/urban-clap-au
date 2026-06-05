@@ -225,6 +225,21 @@ export default async function BookingsPage() {
                     </div>
                   </div>
 
+                  {/* OTP code — shown on assigned bookings for contractor proof of arrival */}
+                  {booking.status === 'assigned' && booking.checkin_otp && (
+                    <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">
+                          Access Code
+                        </p>
+                        <p className="text-xs text-teal-600 mt-0.5">Show this to your cleaner when they arrive</p>
+                      </div>
+                      <span className="text-2xl font-mono font-extrabold text-teal-800 tracking-widest">
+                        {booking.checkin_otp}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Review section — only for completed bookings */}
                   {booking.status === 'completed' && (
                     <ReviewForm

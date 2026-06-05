@@ -220,6 +220,25 @@ function AssignedCard({
           </span>
         </div>
 
+        {(booking as any).checkin_otp && (
+          <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-3 py-2">
+            <span className="text-xs font-semibold text-teal-600">Customer OTP</span>
+            <span className="font-mono font-extrabold text-teal-800 tracking-widest text-base">
+              {(booking as any).checkin_otp}
+            </span>
+          </div>
+        )}
+
+        {(booking as any).checked_in_at && (
+          <p className="text-xs text-emerald-600 font-semibold">
+            ✓ Contractor checked in at{' '}
+            {new Date((booking as any).checked_in_at).toLocaleTimeString('en-AU', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+
         <Button
           variant="secondary"
           size="sm"

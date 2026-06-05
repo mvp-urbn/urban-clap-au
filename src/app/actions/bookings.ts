@@ -169,9 +169,15 @@ export async function getActiveBookings() {
 export async function updateBookingStatus(bookingId: string, status: BookingStatus) {
   const supabase = createAdminClient();
 
+  const patch: Record<string, unknown> = { status };
+  if (status === 'assigned') {
+    // 6-digit OTP for contractor proof-of-arrival
+    patch.checkin_otp = Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
   const { error } = await supabase
     .from('bookings')
-    .update({ status })
+    .update(patch)
     .eq('id', bookingId);
 
   if (error) throw new Error(error.message);
