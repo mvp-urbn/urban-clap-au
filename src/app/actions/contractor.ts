@@ -110,10 +110,10 @@ export async function contractorCheckIn(bookingId: string, lat: number | null, l
   return { lat, lng }; // passed through for future radius validation
 }
 
-export async function verifyJobOtp(bookingId: string, otp: string) {
+export async function verifyJobOtp(bookingId: string, otp: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!user) return { success: false, error: 'Not authenticated' };
 
   const admin = createAdminClient();
 
@@ -124,11 +124,10 @@ export async function verifyJobOtp(bookingId: string, otp: string) {
     .eq('assigned_contractor_id', user.id)
     .single();
 
-  if (fetchError || !booking) throw new Error('Job not found');
-  if (!booking.checkin_otp) throw new Error('No OTP set for this job');
-  if (booking.checkin_otp !== otp.trim()) throw new Error('Incorrect code — ask the customer to double-check');
+  if (fetchError || !booking) return { success: false, error: 'Job not found' };
+  if (!booking.checkin_otp) return { success: false, error: 'No OTP set for this job — contact support' };
+  if (booking.checkin_otp !== otp.trim()) return { success: false, error: 'Incorrect code — ask the customer to double-check' };
 
-  // Save check-in time if not already set
   if (!booking.checked_in_at) {
     await admin
       .from('bookings')
@@ -136,4 +135,6 @@ export async function verifyJobOtp(bookingId: string, otp: string) {
       .eq('id', bookingId)
       .eq('assigned_contractor_id', user.id);
   }
+
+  return { success: true };
 }

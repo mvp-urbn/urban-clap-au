@@ -64,12 +64,12 @@ export function JobDetail({ job: initialJob }: { job: JobWithJoins }) {
     e.preventDefault();
     setOtpError('');
     startOtpTransition(async () => {
-      try {
-        await verifyJobOtp(job.id, otp);
+      const result = await verifyJobOtp(job.id, otp);
+      if (result.success) {
         setOtpVerified(true);
         setJob((prev) => ({ ...prev, checked_in_at: prev.checked_in_at ?? new Date().toISOString() }));
-      } catch (err: unknown) {
-        setOtpError(err instanceof Error ? err.message : 'Verification failed');
+      } else {
+        setOtpError(result.error ?? 'Verification failed');
       }
     });
   };
