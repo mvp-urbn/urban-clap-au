@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripe } from '@/lib/stripe';
 import { BookingFormState, BookingStatus, ServiceTier } from '@/types';
-import { resend, FROM_EMAIL } from '@/lib/resend';
+import { getResend, FROM_EMAIL } from '@/lib/resend';
 import { buildBookingConfirmationEmail } from '@/lib/emails/bookingConfirmation';
 
 export async function createPaymentIntent(
@@ -82,7 +82,7 @@ export async function confirmBooking(
       totalPriceCents: formState.totalPriceCents,
     });
 
-    resend.emails
+    getResend().emails
       .send({ from: FROM_EMAIL, to: user.email, subject, html })
       .catch(() => { /* swallow — booking is already saved */ });
   }
