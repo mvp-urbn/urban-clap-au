@@ -164,3 +164,62 @@ grant all on public.reviews to service_role;
 8. Submit review → read-only star display
 
 **Left off:** Stripe keys still placeholder. Next priorities: (1) full admin dashboard with stats + revenue, or (2) Stripe payment integration.
+
+### 2026-06-06 — Session 5
+
+**GitHub repo setup + README**
+- Initialised git repo in project root, committed all MVP code as initial commit
+- Created GitHub repo `mvp-urbn/urban-clap-au` at `https://github.com/mvp-urbn/urban-clap-au`
+- Replaced boilerplate `create-next-app` README with full project README covering: stack, features, pricing formula, env var setup, DB SQL, routes table, 8-step test flow walkthrough, admin dispatch info, and "What's Next" checklist
+- Pushed both commits to GitHub main branch
+
+**GitHub auth + macOS Keychain**
+- Configured `credential.helper osxkeychain` globally so future pushes don't require a token
+- Seeded macOS Keychain with GitHub PAT for `github.com` / `mvp-urbn` — credential cached for all future pushes
+- PAT used transiently in remote URL during push, then immediately cleaned from git config
+
+**Claude Code auto-permissions**
+- Added git command allow rules to `~/.claude/settings.json` so all git operations (add, commit, push, pull, status, log, diff, branch, remote) run without permission prompts in any future session
+
+**Left off:** All MVP code is on GitHub. No new features built this session. Next priorities:
+1. Add real Stripe keys to `.env.local` → unlocks Step 5 payment (est. 10 min)
+2. Wire `/api/webhooks/stripe` → update booking status after payment
+3. Full admin dashboard (`/admin`) — stats row (revenue, booking counts), all-bookings table with filters and status actions
+4. Supabase Realtime — auto-refresh dispatch console without Refresh button
+5. Resend domain verification — verify a domain to send emails to real customers
+6. Production deployment on Vercel + Supabase prod environment
+
+### 2026-06-06 — Session 6
+
+**Full admin dashboard `/admin`**
+- New server actions: `getAllBookings()` (all bookings with profile+service join, ordered newest first) and `getAdminStats()` (revenue, counts by status, unique customers)
+- `src/app/admin/page.tsx` — PIN auth guard (same `admin_pin` cookie), parallel fetch of bookings + stats, renders `AdminDashboard`
+- `src/app/admin/AdminDashboard.tsx` — client component:
+  - Stats row: Revenue (completed), Customers, Pending, In Progress, Completed
+  - Filter tabs: All / Pending / In Progress / Completed / Cancelled (with counts)
+  - Full bookings table: Date, Customer, Address (hidden on mobile), Service tier + bed/bath, Price, Status badge, Action buttons
+  - Inline status actions: Mark Assigned, Mark Completed, Cancel (with optimistic UI + revert on error)
+  - Nav links to Dispatch Console, Refresh, Sign Out
+- Separate nav in admin pages: admin nav links between `/admin` (dashboard) and `/admin/dispatch` (dispatch console)
+
+**Supabase Realtime in dispatch console**
+- `DispatchDashboard.tsx` now subscribes to `postgres_changes` on `bookings` table via the browser Supabase client
+- On any INSERT/UPDATE/DELETE → automatically calls `getActiveBookings()` server action to refresh booking list
+- Live status indicator in top nav: amber when connecting, turns green ("Live · N Pending") once SUBSCRIBED
+- Channel cleaned up on unmount via `useRef` + `useEffect` cleanup
+- Manual Refresh button kept as fallback
+
+**To enable Realtime: in Supabase Dashboard → Database → Replication → enable `bookings` table**
+
+**Vercel deployment**
+- All 10 env vars pushed to Vercel project `urban-clap-au` (tioatrs-projects scope) via CLI
+- Production aliases: `urban-clap-au-tioatrs-projects.vercel.app` and `urban-clap-au-tioatr-tioatrs-projects.vercel.app`
+- Deploy in progress at session end — first build (no cache) takes ~5–10 min
+
+**Left off:** 
+1. Add real Stripe keys to `.env.local` AND to Vercel env vars → unlocks Step 5 payment
+2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed
+3. Enable Supabase Realtime on `bookings` table (Dashboard → Database → Replication)
+4. Update `NEXT_PUBLIC_APP_URL` on Vercel to final production domain once assigned
+5. Resend domain verification → send emails to real customers (not just Resend account email)
+6. Connect GitHub repo to Vercel project (currently deploying via local CLI upload, not Git push)

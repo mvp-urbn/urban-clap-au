@@ -177,6 +177,50 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
   if (error) throw new Error(error.message);
 }
 
+export async function getAllBookings() {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(
+      `
+      *,
+      profiles:customer_id ( full_name, phone_number ),
+      services:service_id ( tier, category_name )
+    `
+    )
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getAdminStats() {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('status, total_price_cents, customer_id');
+
+  if (error) throw new Error(error.message);
+
+  const rows = data ?? [];
+  const totalRevenueCents = rows
+    .filter((r) => r.status === 'completed')
+    .reduce((sum, r) => sum + (r.total_price_cents ?? 0), 0);
+  const uniqueCustomers = new Set(rows.map((r) => r.customer_id)).size;
+
+  return {
+    totalRevenueCents,
+    uniqueCustomers,
+    pending: rows.filter((r) => r.status === 'pending_dispatch').length,
+    assigned: rows.filter((r) => r.status === 'assigned').length,
+    completed: rows.filter((r) => r.status === 'completed').length,
+    cancelled: rows.filter((r) => r.status === 'cancelled').length,
+    total: rows.length,
+  };
+}
+
 export async function submitReview(bookingId: string, rating: number, comment: string) {
   const supabase = await createClient();
 

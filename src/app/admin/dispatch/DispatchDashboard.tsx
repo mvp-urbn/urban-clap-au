@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ClipboardCopy,
   CheckCheck,
@@ -21,6 +21,7 @@ import { calculatePrice } from '@/hooks/usePricingCalculator';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { getActiveBookings, updateBookingStatus } from '@/app/actions/bookings';
+import { createClient } from '@/lib/supabase/client';
 
 interface DispatchDashboardProps {
   initialBookings: Booking[];
@@ -238,6 +239,30 @@ export function DispatchDashboard({ initialBookings }: DispatchDashboardProps) {
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('dispatch-bookings')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        async () => {
+          const fresh = await getActiveBookings();
+          setBookings(fresh ?? []);
+        }
+      )
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    channelRef.current = channel;
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Seed panel state
   const [seeding, setSeeding] = useState(false);
@@ -333,9 +358,28 @@ export function DispatchDashboard({ initialBookings }: DispatchDashboardProps) {
             <p className="text-xs text-slate-400">Urban Clap AU · Admin Only</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-xs font-semibold text-amber-700">{pending.length} Pending</span>
+            <div
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-3 py-1 border',
+                isLive
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
+              )}
+            >
+              <span
+                className={cn(
+                  'w-2 h-2 rounded-full animate-pulse',
+                  isLive ? 'bg-emerald-500' : 'bg-amber-500'
+                )}
+              />
+              <span
+                className={cn(
+                  'text-xs font-semibold',
+                  isLive ? 'text-emerald-700' : 'text-amber-700'
+                )}
+              >
+                {isLive ? 'Live · ' : ''}{pending.length} Pending
+              </span>
             </div>
             <Button variant="secondary" size="sm" onClick={handleSeed} isLoading={seeding}>
               <FlaskConical className="w-3.5 h-3.5" />
