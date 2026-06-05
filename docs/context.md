@@ -58,11 +58,11 @@ Silver 1.0× · Gold 1.4× · Pro 1.8× · All prices AUD incl. GST
 6. ~~Customer review / star rating~~ ✓ done (reviews table, ReviewForm component)
 7. ~~Full admin dashboard (`/admin`)~~ ✓ done (stats row, filter tabs, all-bookings table, inline status actions)
 8. ~~Supabase Realtime in dispatch console~~ ✓ done (auto-refresh without clicking Refresh)
-9. Contractor job accept/reject flow
-10. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
-11. ~~Resend domain verification~~ ✓ done — confirmation emails now deliver to real customers
-12. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
-13. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
+9. ~~Production deployment (Vercel)~~ ✓ done — https://urban-clap-au.vercel.app
+10. Stripe setup — add real keys to `.env.local` to unlock Step 5 payment (est. 5 min)
+11. Stripe webhook (`/api/webhooks/stripe`) — update booking status after payment
+12. Contractor portal — onboarding (ABN, insurance), job board, geofence + OTP proof of work
+13. Resend domain verification — needs a domain before emails can reach real customers
 
 ---
 
@@ -234,23 +234,34 @@ grant all on public.reviews to service_role;
 - `git push origin main` now works — repo and Vercel are in sync
 
 **Supabase Realtime enabled**
-- In Supabase Dashboard → Database → Replication → toggled `bookings` table ON
+- Supabase Dashboard UI changed — "Replication" now means read replicas, not Realtime
+- Correct path: Database → Publications → `supabase_realtime` → toggled `bookings` table ON
 - Dispatch console now auto-refreshes live without clicking Refresh
 
-**Resend domain verification**
-- Verified sending domain in Resend dashboard (resend.com/domains)
-- Added DNS records (SPF, DKIM, DMARC) to domain registrar
-- Updated `RESEND_FROM_EMAIL` in `.env.local` to `bookings@[verified-domain]`
-- Added `RESEND_FROM_EMAIL` to Vercel env vars via CLI → redeployed
-- Confirmation emails now deliver to real customer inboxes
+**Resend domain verification — skipped**
+- No domain owned yet — deferred until ready to go live with real customers
+- Emails still deliver to Resend account email during testing
 
-**Vercel ↔ GitHub auto-deploy connected**
-- Connected `mvp-urbn/urban-clap-au` GitHub repo to Vercel project via Vercel Dashboard → Settings → Git
-- Every push to `main` now triggers automatic production deployment
-- No more manual `vercel --prod` CLI uploads needed
+**Vercel ↔ GitHub auto-deploy — skipped**
+- Vercel couldn't show `mvp-urbn` account in repo picker (only showed `Tioatr`)
+- GitHub App was installed on `mvp-urbn` correctly but Vercel UI didn't reflect it
+- Workaround: continue using `npx vercel --prod --yes` from CLI for deployments
+
+**Claude Code auto-permissions expanded**
+- Added `Bash(npx vercel *)` to `~/.claude/settings.json` — Vercel deploys now run without permission prompts
+- Git operations were already auto-approved from Session 5
+
+**README updated — project blueprint merged**
+- Merged user-provided project blueprint into existing README without breaking old content
+- Added: project status matrix table (Customer ✓, Admin ✓, Contractor 🆕)
+- Added: 3 codebase rules (monetary integers, state machine, don't break existing flows)
+- Added: full directory structure blueprint including contractor portal placeholders
+- Updated: What's Next section reflects current state (admin dashboard + Realtime + Vercel = done)
+- No duplicates — all content merged cleanly
 
 **Left off:**
 1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment (est. 5 min)
 2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed (est. 30 min)
-3. Contractor job accept/reject flow
-4. Update `NEXT_PUBLIC_APP_URL` on Vercel to `https://urban-clap-au.vercel.app` if not already set
+3. Contractor portal — onboarding (ABN, insurance), job board, geofence + OTP proof of work
+4. Resend domain verification → send emails to real customers (needs a domain first)
+5. GitHub → Vercel auto-deploy (deferred — use `npx vercel --prod --yes` for now)
