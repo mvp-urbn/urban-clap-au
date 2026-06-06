@@ -385,3 +385,57 @@ grant all on public.reviews to service_role;
 3. Admin contractor approval UI in `/admin` dashboard (currently: approve via Supabase SQL)
 4. Resend domain verification → real outbound email (needs a domain)
 5. GitHub → Vercel auto-deploy still not wired (use `npx vercel --prod --yes` from CLI for now)
+
+---
+
+### 2026-06-07 — Session 11
+
+**Dispatch console nav overflow fix**
+- All 6 nav items (Dashboard, Contractors, Live pill, Seed, Refresh, Sign Out) were crammed into one flex row — items collapsed and overlapped on any screen
+- Split the dispatch nav into two rows:
+  - Row 1: Brand title + live/pending indicator + Sign Out
+  - Row 2: Dashboard → · Contractors → · Reviews → (nav links) | Seed Test Data · Refresh (utility actions)
+- Fix applied to `src/app/admin/dispatch/DispatchDashboard.tsx`
+
+**Review submission bug fixed**
+- `/bookings` page showed "An error occurred in the Server Components render" when clicking Submit Review
+- Root cause 1: `reviews` table didn't exist in Supabase — schema.sql never created it
+- Created `supabase/reviews-schema.sql` migration — user ran it in Supabase SQL Editor ✓
+- Root cause 2: Even after table creation, `submitReview` used the user-session Supabase client; RLS upsert can fail silently or be blocked by partial policy application
+- Fixed: `submitReview` now uses `createAdminClient()` (same pattern as all other admin writes) with user identity validated from the auth token — not from user input
+- Root cause 3: In Next.js production, thrown errors from server actions are stripped to a generic message; client catch was displaying "An error occurred in the Server Components render" as the error string
+- Fixed: `submitReview` now returns `{ error: string | null }` instead of throwing — real error messages surface in the UI
+- `ReviewForm.tsx` updated to consume the returned `{ error }` instead of try/catching a thrown error
+
+**Admin Reviews page (`/admin/reviews`)**
+- `getAllReviews()` server action: joins `reviews` with `profiles` (customer name) and `bookings → services` (suburb, tier) — ordered newest first
+- New page `/admin/reviews/page.tsx` — PIN auth guard, server component, passes data to client panel
+- `ReviewsPanel.tsx` client component:
+  - Stats row: Average Rating · Total Reviews · 5-Star Count · Low Ratings (1–2★)
+  - Rating distribution bar chart (5→1 stars with fill proportional to count)
+  - Filter tabs: All / 5 Stars / 4 Stars / 3 Stars / 1–2 Stars (with counts)
+  - Table: Customer name, Location (suburb+postcode), Tier badge, Star rating, Comment (italic), Date submitted
+  - Nav links: Dashboard, Dispatch, Contractors + Refresh button
+- Reviews nav link added to all three admin pages: AdminDashboard, ContractorsPanel, DispatchDashboard
+
+**SQL run in Supabase this session (`supabase/reviews-schema.sql`):**
+```sql
+create table if not exists public.reviews (
+  id          uuid primary key default uuid_generate_v4(),
+  booking_id  uuid not null references public.bookings(id) on delete cascade,
+  customer_id uuid not null references public.profiles(id) on delete cascade,
+  rating      integer not null check (rating between 1 and 5),
+  comment     text,
+  created_at  timestamptz not null default now(),
+  unique (booking_id)
+);
+-- + RLS policies + indexes — see supabase/reviews-schema.sql for full SQL
+```
+
+**Routes now live:** 17 total (added `/admin/reviews`)
+
+**What's next:**
+1. Stripe real keys → add to `.env.local` + push to Vercel → unlocks Step 5 payment (est. 5 min)
+2. Stripe webhook `/api/webhooks/stripe` → update booking status after payment confirmed (est. 30 min)
+3. Resend domain verification → real outbound email to customers (needs a domain first)
+4. Supabase Auth redirect URLs — confirm `https://urban-clap-au-jet.vercel.app` is set as Site URL in Supabase Dashboard → Authentication → URL Configuration
