@@ -331,16 +331,17 @@ grant all on public.reviews to service_role;
 - "Contractors" nav link added to AdminDashboard top nav (between Dashboard and Dispatch)
 - Build: 16 routes, zero TypeScript errors, deployed to production
 
-**GitHub → Vercel auto-deploy (item 5)**
-- `npx vercel git connect` fails with "Failed to connect" — the Vercel GitHub App is not yet authorized for the `mvp-urbn` org under the `tioatrs-projects` Vercel team
-- Manual fix required: Vercel Dashboard → Settings → Integrations → GitHub → Configure → add `mvp-urbn/urban-clap-au` to repository access → then run `npx vercel git connect https://github.com/mvp-urbn/urban-clap-au`
-- Until then: continue using `npx vercel --prod --yes` + `git push origin main` separately
+**GitHub → Vercel auto-deploy ✓**
+- Old CLI was logged into `tioatr` Vercel account; active project is under `thinkbigger-s-projects` (different account, GitHub user `mvp-urbn`)
+- Re-authenticated CLI as `mvp-urbn`, re-linked project to `thinkbigger-s-projects/urban-clap-au`
+- Made GitHub repo `mvp-urbn/urban-clap-au` **public** (Hobby plan blocks auto-deploy for private repos)
+- Pushed all 10 env vars to `thinkbigger-s-projects` Vercel project
+- Every `git push origin main` now auto-deploys — confirmed with test commit
 
 **Left off:**
 1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment
 2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed
-3. GitHub → Vercel auto-deploy: needs one-time browser fix in Vercel Settings (see above)
-4. Resend domain verification → real outbound email (needs a domain)
+3. Resend domain verification → real outbound email (needs a domain)
 
 ### 2026-06-06 — Session 9
 
