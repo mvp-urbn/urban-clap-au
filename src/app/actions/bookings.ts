@@ -227,19 +227,30 @@ export async function getAdminStats() {
   };
 }
 
-export async function submitReview(bookingId: string, rating: number, comment: string) {
-  const supabase = await createClient();
+export async function submitReview(
+  bookingId: string,
+  rating: number,
+  comment: string
+): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    if (!user) return { error: 'Not authenticated' };
 
-  if (!user) throw new Error('Not authenticated');
+    // Use admin client so RLS never interferes with the upsert.
+    // customer_id is sourced from the verified auth token, not user input.
+    const admin = createAdminClient();
+    const { error } = await admin.from('reviews').upsert(
+      { booking_id: bookingId, customer_id: user.id, rating, comment: comment || null },
+      { onConflict: 'booking_id' }
+    );
 
-  const { error } = await supabase.from('reviews').upsert(
-    { booking_id: bookingId, customer_id: user.id, rating, comment },
-    { onConflict: 'booking_id' }
-  );
-
-  if (error) throw new Error(error.message);
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (e: any) {
+    return { error: e?.message ?? 'Unknown error' };
+  }
 }

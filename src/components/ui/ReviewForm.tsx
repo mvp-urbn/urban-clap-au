@@ -54,15 +54,14 @@ export function ReviewForm({ bookingId, existingRating, existingComment }: Revie
     }
     setSubmitting(true);
     setError('');
-    try {
-      await submitReview(bookingId, rating, comment.trim());
-      setSubmitted(true);
-      router.refresh();
-    } catch (e: any) {
-      setError(e.message ?? 'Something went wrong. Please try again.');
-    } finally {
-      setSubmitting(false);
+    const { error: err } = await submitReview(bookingId, rating, comment.trim());
+    setSubmitting(false);
+    if (err) {
+      setError(err);
+      return;
     }
+    setSubmitted(true);
+    router.refresh();
   };
 
   return (
