@@ -7,24 +7,10 @@ import { BookingFormState, BookingStatus, ServiceTier } from '@/types';
 import { getResend, FROM_EMAIL } from '@/lib/resend';
 import { buildBookingConfirmationEmail } from '@/lib/emails/bookingConfirmation';
 
-export async function createPaymentIntent(
-  totalCents: number,
-  metadata: Record<string, string>
-) {
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: totalCents,
-    currency: 'aud',
-    automatic_payment_methods: { enabled: true },
-    metadata,
-  });
-
-  return { clientSecret: paymentIntent.client_secret, id: paymentIntent.id };
-}
-
-export async function confirmBooking(
-  formState: BookingFormState,
-  paymentIntentId: string
-) {
+// Creates a payment_pending booking + Stripe PaymentIntent in one call.
+// The client confirms payment, then calls confirmBooking to flip to pending_dispatch.
+// The webhook is a safety net if the client crashes between the two.
+export async function createBookingWithIntent(formState: BookingFormState) {
   const supabase = await createClient();
 
   const {
@@ -33,7 +19,6 @@ export async function confirmBooking(
 
   if (!user) throw new Error('Not authenticated');
 
-  // Resolve service ID from tier
   const { data: service, error: serviceError } = await supabase
     .from('services')
     .select('id')
@@ -43,10 +28,23 @@ export async function confirmBooking(
 
   if (serviceError || !service) throw new Error('Service not found');
 
-  // Combine date + timeSlot into a UTC timestamptz
   const scheduled = new Date(`${formState.date} ${formState.timeSlot}`);
 
-  const { data: booking, error } = await supabase
+  // Create PI first so we have its ID to store on the booking
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: formState.totalPriceCents,
+    currency: 'aud',
+    automatic_payment_methods: { enabled: true },
+    metadata: {
+      customer_id: user.id,
+      tier: formState.tier ?? '',
+      suburb: formState.suburb,
+      date: formState.date,
+    },
+  });
+
+  const admin = createAdminClient();
+  const { data: booking, error } = await admin
     .from('bookings')
     .insert({
       customer_id: user.id,
@@ -58,15 +56,44 @@ export async function confirmBooking(
       bathrooms_count: formState.bathrooms,
       scheduled_datetime: scheduled.toISOString(),
       total_price_cents: formState.totalPriceCents,
-      stripe_payment_intent_id: paymentIntentId,
-      status: 'pending_dispatch',
+      stripe_payment_intent_id: paymentIntent.id,
+      status: 'payment_pending',
     })
     .select()
     .single();
 
   if (error) throw new Error(error.message);
 
-  // Fire confirmation email — non-blocking, failure must not break the booking
+  return { clientSecret: paymentIntent.client_secret!, bookingId: booking.id };
+}
+
+// Called client-side after Stripe confirms payment. Updates payment_pending → pending_dispatch
+// and fires the confirmation email. Idempotent — safe if the webhook already ran.
+export async function confirmBooking(
+  bookingId: string,
+  formState: BookingFormState,
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const admin = createAdminClient();
+
+  const { data: booking, error } = await admin
+    .from('bookings')
+    .update({ status: 'pending_dispatch' })
+    .eq('id', bookingId)
+    .eq('customer_id', user.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // Fire confirmation email — non-blocking
   if (booking && user.email && formState.tier) {
     const { subject, html } = buildBookingConfirmationEmail({
       customerName: (user.user_metadata?.full_name as string | undefined) ?? user.email,
@@ -257,12 +284,14 @@ export async function submitReview(
 
 export async function getAllReviews() {
   const admin = createAdminClient();
+  // customer name comes from bookings→profiles (bookings.customer_id → profiles.id is a clean FK).
+  // We don't join reviews.customer_id→profiles directly because the original reviews table
+  // was created with customer_id referencing auth.users (invisible to PostgREST).
   const { data, error } = await admin
     .from('reviews')
     .select(`
       id, booking_id, rating, comment, created_at,
-      profiles:customer_id ( full_name ),
-      bookings:booking_id ( suburb, postcode, scheduled_datetime, services:service_id ( tier ) )
+      bookings:booking_id ( suburb, postcode, scheduled_datetime, profiles:customer_id ( full_name ), services:service_id ( tier ) )
     `)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);

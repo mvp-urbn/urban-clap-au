@@ -38,17 +38,19 @@ interface AdminDashboardProps {
 type FilterTab = 'all' | BookingStatus;
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
+  payment_pending:  'Awaiting Payment',
   pending_dispatch: 'Pending',
-  assigned: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  assigned:         'In Progress',
+  completed:        'Completed',
+  cancelled:        'Cancelled',
 };
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
+  payment_pending:  'bg-slate-100 text-slate-500',
   pending_dispatch: 'bg-amber-100 text-amber-700',
-  assigned: 'bg-blue-100 text-blue-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-red-100 text-red-700',
+  assigned:         'bg-blue-100 text-blue-700',
+  completed:        'bg-emerald-100 text-emerald-700',
+  cancelled:        'bg-red-100 text-red-700',
 };
 
 function formatDate(dt: string) {

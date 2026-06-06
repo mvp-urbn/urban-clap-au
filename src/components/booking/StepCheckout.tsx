@@ -11,7 +11,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { CheckCircle2, MapPin, Calendar, BedDouble, Bath, Loader2, AlertCircle } from 'lucide-react';
 import { useBooking } from '@/context/BookingContext';
 import { Button } from '@/components/ui/Button';
-import { createPaymentIntent, confirmBooking } from '@/app/actions/bookings';
+import { createBookingWithIntent, confirmBooking } from '@/app/actions/bookings';
 import { usePricingCalculator } from '@/hooks/usePricingCalculator';
 import { TIER_BADGE_COLORS } from '@/types';
 import { cn } from '@/lib/utils';
@@ -90,7 +90,7 @@ function BookingSummary() {
 }
 
 // ── Inner checkout form (needs Stripe context) ─────────────────
-function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
+function CheckoutForm({ bookingId, onSuccess }: { bookingId: string; onSuccess: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const { formState } = useBooking();
@@ -105,7 +105,6 @@ function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
 
     try {
-      // Confirm Stripe payment
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
@@ -118,11 +117,10 @@ function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
       }
 
       if (paymentIntent?.status === 'succeeded') {
-        // Save booking to Supabase
-        await confirmBooking(formState, paymentIntent.id);
+        await confirmBooking(bookingId, formState);
         onSuccess();
       }
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -192,7 +190,7 @@ function SuccessScreen() {
 export function StepCheckout() {
   const { formState, prevStep } = useBooking();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [bookingId, setBookingId] = useState<string | null>(null);
   const [isLoadingIntent, setIsLoadingIntent] = useState(true);
   const [intentError, setIntentError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -201,22 +199,15 @@ export function StepCheckout() {
     setIsLoadingIntent(true);
     setIntentError(null);
     try {
-      const { clientSecret: cs, id } = await createPaymentIntent(
-        formState.totalPriceCents,
-        {
-          tier: formState.tier ?? '',
-          suburb: formState.suburb,
-          date: formState.date,
-        }
-      );
+      const { clientSecret: cs, bookingId: bid } = await createBookingWithIntent(formState);
       setClientSecret(cs);
-      setPaymentIntentId(id);
+      setBookingId(bid);
     } catch {
       setIntentError('Could not initialise payment. Please try again.');
     } finally {
       setIsLoadingIntent(false);
     }
-  }, [formState.totalPriceCents, formState.tier, formState.suburb, formState.date]);
+  }, [formState.totalPriceCents, formState.tier, formState.suburb, formState.date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchIntent();
@@ -262,7 +253,7 @@ export function StepCheckout() {
             },
           }}
         >
-          <CheckoutForm onSuccess={() => setIsSuccess(true)} />
+          <CheckoutForm bookingId={bookingId!} onSuccess={() => setIsSuccess(true)} />
         </Elements>
       ) : null}
 

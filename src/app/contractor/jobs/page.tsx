@@ -10,10 +10,11 @@ import { TIER_BADGE_COLORS } from '@/types';
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<BookingStatus, { label: string; classes: string }> = {
-  pending_dispatch: { label: 'Pending',     classes: 'bg-amber-100 text-amber-700 border-amber-200' },
-  assigned:         { label: 'Your Job',    classes: 'bg-teal-100 text-teal-700 border-teal-200' },
-  completed:        { label: 'Completed',   classes: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  cancelled:        { label: 'Cancelled',   classes: 'bg-red-100 text-red-700 border-red-200' },
+  payment_pending:  { label: 'Awaiting Payment', classes: 'bg-slate-100 text-slate-500 border-slate-200' },
+  pending_dispatch: { label: 'Pending',          classes: 'bg-amber-100 text-amber-700 border-amber-200' },
+  assigned:         { label: 'Your Job',         classes: 'bg-teal-100 text-teal-700 border-teal-200' },
+  completed:        { label: 'Completed',        classes: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  cancelled:        { label: 'Cancelled',        classes: 'bg-red-100 text-red-700 border-red-200' },
 };
 
 function formatDate(iso: string) {

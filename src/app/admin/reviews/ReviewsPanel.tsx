@@ -257,12 +257,12 @@ export function ReviewsPanel({ initialReviews }: { initialReviews: ReviewRow[] }
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((r) => {
                     const booking = r.bookings as any;
-                    const profile = r.profiles as any;
                     const tier = booking?.services?.tier ?? '—';
+                    const customerName = booking?.profiles?.full_name ?? '—';
                     return (
                       <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-800">
-                          {profile?.full_name ?? '—'}
+                          {customerName}
                         </td>
                         <td className="px-4 py-3 text-slate-600 hidden sm:table-cell">
                           {booking?.suburb ?? '—'}{booking?.postcode ? ` ${booking.postcode}` : ''}

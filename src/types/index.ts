@@ -1,6 +1,7 @@
 export type UserRole = 'customer' | 'contractor' | 'admin';
 export type ServiceTier = 'Silver' | 'Gold' | 'Pro';
 export type BookingStatus =
+  | 'payment_pending'
   | 'pending_dispatch'
   | 'assigned'
   | 'completed'
