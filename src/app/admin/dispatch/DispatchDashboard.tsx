@@ -374,68 +374,77 @@ export function DispatchDashboard({ initialBookings }: DispatchDashboardProps) {
     <div className="min-h-screen bg-slate-50">
       {/* Top nav */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Dispatch Console</h1>
-            <p className="text-xs text-slate-400">Urban Clap AU · Admin Only</p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <a
-              href="/admin"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </a>
-            <a
-              href="/admin/contractors"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Contractors</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </a>
-            <div
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1 border',
-                isLive
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : 'bg-amber-50 border-amber-200'
-              )}
-            >
-              <span
+        <div className="max-w-3xl mx-auto px-4">
+          {/* Row 1: Brand + live indicator + sign out */}
+          <div className="py-3 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Dispatch Console</h1>
+              <p className="text-xs text-slate-400">Urban Clap AU · Admin Only</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
                 className={cn(
-                  'w-2 h-2 rounded-full animate-pulse',
-                  isLive ? 'bg-emerald-500' : 'bg-amber-500'
-                )}
-              />
-              <span
-                className={cn(
-                  'text-xs font-semibold',
-                  isLive ? 'text-emerald-700' : 'text-amber-700'
+                  'flex items-center gap-1.5 rounded-full px-3 py-1 border',
+                  isLive ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
                 )}
               >
-                {isLive ? 'Live · ' : ''}{pending.length} Pending
-              </span>
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full animate-pulse',
+                    isLive ? 'bg-emerald-500' : 'bg-amber-500'
+                  )}
+                />
+                <span
+                  className={cn(
+                    'text-xs font-semibold',
+                    isLive ? 'text-emerald-700' : 'text-amber-700'
+                  )}
+                >
+                  {isLive ? 'Live · ' : ''}{pending.length} Pending
+                </span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </Button>
             </div>
-            <Button variant="secondary" size="sm" onClick={handleSeed} isLoading={seeding}>
-              <FlaskConical className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Seed Test Data</span>
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleRefresh}
-              isLoading={isRefreshing}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleSignOut}>
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </Button>
+          </div>
+
+          {/* Row 2: Nav links + utility actions */}
+          <div className="pb-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+            <div className="flex items-center gap-1">
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
+              <a
+                href="/admin/contractors"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Contractors</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={handleSeed} isLoading={seeding}>
+                <FlaskConical className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Seed Test Data</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleRefresh}
+                isLoading={isRefreshing}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
