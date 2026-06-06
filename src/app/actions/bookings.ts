@@ -254,3 +254,17 @@ export async function submitReview(
     return { error: e?.message ?? 'Unknown error' };
   }
 }
+
+export async function getAllReviews() {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('reviews')
+    .select(`
+      id, booking_id, rating, comment, created_at,
+      profiles:customer_id ( full_name ),
+      bookings:booking_id ( suburb, postcode, scheduled_datetime, services:service_id ( tier ) )
+    `)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}

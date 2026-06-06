@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ChevronRight,
   ShieldCheck,
+  Star,
 } from 'lucide-react';
 import { Booking, BookingStatus, TIER_BADGE_COLORS } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -141,6 +142,14 @@ export function AdminDashboard({ initialBookings, stats }: AdminDashboardProps) 
             >
               <ShieldCheck className="w-4 h-4" />
               <span className="hidden sm:inline">Contractors</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+            <a
+              href="/admin/reviews"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <Star className="w-4 h-4" />
+              <span className="hidden sm:inline">Reviews</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </a>
             <a
