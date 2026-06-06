@@ -34,6 +34,7 @@ export async function saveContractorOnboarding({
   phone,
   abn,
   insuranceExpiry,
+  insuranceDocumentUrl,
   servicePostcodes,
   categories,
   experienceYears,
@@ -48,6 +49,7 @@ export async function saveContractorOnboarding({
   phone: string;
   abn: string;
   insuranceExpiry: string;
+  insuranceDocumentUrl: string;
   servicePostcodes: string[];
   categories: string[];
   experienceYears: number;
@@ -71,6 +73,7 @@ export async function saveContractorOnboarding({
       phone_number: phone,
       abn,
       insurance_expiry: insuranceExpiry || null,
+      insurance_document_url: insuranceDocumentUrl || null,
       service_postcodes: servicePostcodes,
       contractor_status: 'pending',
       contractor_categories: categories,

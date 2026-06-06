@@ -1,23 +1,47 @@
 'use client';
 
-import { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { CheckCircle2, Upload, FileText, X } from 'lucide-react';
 import { saveContractorOnboarding } from '@/app/actions/contractor';
 import { CONTRACTOR_CATEGORIES } from '@/lib/contractor-categories';
 import { cn } from '@/lib/utils';
 
+const IMAGE_COMPRESS_THRESHOLD = 1.5 * 1024 * 1024;
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const MAX_DIM = 2000;
+const JPEG_QUALITY = 0.78;
+
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size <= IMAGE_COMPRESS_THRESHOLD) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file),
+        'image/jpeg',
+        JPEG_QUALITY,
+      );
+    };
+    img.src = url;
+  });
+}
+
 const inputCls =
   'w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-white placeholder:text-slate-300';
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-semibold text-slate-700">
@@ -30,22 +54,17 @@ function Field({
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider pt-2">{children}</p>
-  );
+  return <p className="text-xs font-bold text-slate-500 uppercase tracking-wider pt-2">{children}</p>;
 }
 
-export function OnboardForm({
-  defaultName,
-  defaultPhone,
-}: {
-  defaultName: string;
-  defaultPhone: string;
-}) {
+export function OnboardForm({ defaultName, defaultPhone }: { defaultName: string; defaultPhone: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [insuranceFile, setInsuranceFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'compressing' | 'uploading'>('idle');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     abn: '',
@@ -63,21 +82,31 @@ export function OnboardForm({
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const toggleCategory = (id: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    );
-  };
+  const toggleCategory = (id: string) =>
+    setSelectedCategories((prev) => prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]);
 
-  const needsInsurance = CONTRACTOR_CATEGORIES.some(
-    (c) => selectedCategories.includes(c.id) && c.requiresInsurance,
-  );
-  const needsLicense = CONTRACTOR_CATEGORIES.some(
-    (c) => selectedCategories.includes(c.id) && c.requiresLicense,
-  );
-  const needsEquipment = CONTRACTOR_CATEGORIES.some(
-    (c) => selectedCategories.includes(c.id) && c.requiresEquipment,
-  );
+  const needsInsurance = CONTRACTOR_CATEGORIES.some((c) => selectedCategories.includes(c.id) && c.requiresInsurance);
+  const needsLicense   = CONTRACTOR_CATEGORIES.some((c) => selectedCategories.includes(c.id) && c.requiresLicense);
+  const needsEquipment = CONTRACTOR_CATEGORIES.some((c) => selectedCategories.includes(c.id) && c.requiresEquipment);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+    if (raw.size > MAX_FILE_BYTES) {
+      setError('File is too large (max 15 MB). Please choose a smaller file.');
+      e.target.value = '';
+      return;
+    }
+    setError('');
+    if (raw.type.startsWith('image/') && raw.size > IMAGE_COMPRESS_THRESHOLD) {
+      setUploadStatus('compressing');
+      const compressed = await compressImage(raw);
+      setInsuranceFile(compressed);
+      setUploadStatus('idle');
+    } else {
+      setInsuranceFile(raw);
+    }
+  };
 
   const handleStep1Continue = () => {
     if (selectedCategories.length === 0) {
@@ -88,7 +117,7 @@ export function OnboardForm({
     setStep(2);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -101,28 +130,46 @@ export function OnboardForm({
       setError('Insurance expiry date is required for your selected services');
       return;
     }
+    if (needsInsurance && !insuranceFile) {
+      setError('Please upload your insurance certificate (PDF, JPG or PNG)');
+      return;
+    }
     if (needsLicense && !form.licenseNumber.trim()) {
       setError('License or certificate number is required for your selected services');
       return;
     }
 
-    const servicePostcodes = form.postcodes
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean);
-
+    const servicePostcodes = form.postcodes.split(',').map((p) => p.trim()).filter(Boolean);
     if (servicePostcodes.length === 0) {
       setError('Enter at least one service postcode');
       return;
     }
 
     setLoading(true);
+
+    let insuranceDocumentUrl = '';
+    if (insuranceFile) {
+      setUploadStatus('uploading');
+      const fd = new FormData();
+      fd.append('file', insuranceFile);
+      const res = await fetch('/api/upload-insurance', { method: 'POST', body: fd });
+      const json = await res.json();
+      setUploadStatus('idle');
+      if (!res.ok || json.error) {
+        setError(json.error ?? 'Failed to upload insurance document');
+        setLoading(false);
+        return;
+      }
+      insuranceDocumentUrl = json.path as string;
+    }
+
     try {
       await saveContractorOnboarding({
         fullName: defaultName,
         phone: defaultPhone,
         abn,
         insuranceExpiry: form.insuranceExpiry,
+        insuranceDocumentUrl,
         servicePostcodes,
         categories: selectedCategories,
         experienceYears: parseInt(form.experienceYears, 10) || 0,
@@ -144,13 +191,9 @@ export function OnboardForm({
     return (
       <div className="space-y-5">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
         )}
-
         <p className="text-sm text-slate-600">Select all the services you offer:</p>
-
         <div className="grid grid-cols-2 gap-3">
           {CONTRACTOR_CATEGORIES.map((cat) => {
             const isSelected = selectedCategories.includes(cat.id);
@@ -166,16 +209,13 @@ export function OnboardForm({
                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
                 )}
               >
-                {isSelected && (
-                  <CheckCircle2 className="w-4 h-4 text-teal-600 absolute top-2 right-2" />
-                )}
+                {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600 absolute top-2 right-2" />}
                 <span className="text-2xl">{cat.icon}</span>
                 <span className="text-xs font-semibold leading-tight">{cat.label}</span>
               </button>
             );
           })}
         </div>
-
         <button
           type="button"
           onClick={handleStep1Continue}
@@ -187,98 +227,53 @@ export function OnboardForm({
     );
   }
 
+  const uploadLabel =
+    uploadStatus === 'compressing' ? 'Compressing image…' :
+    uploadStatus === 'uploading'   ? 'Uploading…' : null;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
       <SectionHeading>Professional Details</SectionHeading>
 
       <Field label="ABN (11 digits)" hint="Spaces OK">
-        <input
-          type="text"
-          required
-          value={form.abn}
-          onChange={set('abn')}
-          className={inputCls}
-          placeholder="51 824 753 556"
-          maxLength={14}
-        />
+        <input type="text" required value={form.abn} onChange={set('abn')} className={inputCls} placeholder="51 824 753 556" maxLength={14} />
       </Field>
 
       <Field label="Years of Experience">
-        <input
-          type="number"
-          min={0}
-          max={40}
-          value={form.experienceYears}
-          onChange={set('experienceYears')}
-          className={inputCls}
-          placeholder="e.g. 3"
-        />
+        <input type="number" min={0} max={40} value={form.experienceYears} onChange={set('experienceYears')} className={inputCls} placeholder="e.g. 3" />
       </Field>
 
       <Field label="Reference Name" hint="Full name of a professional reference">
-        <input
-          type="text"
-          value={form.referenceName}
-          onChange={set('referenceName')}
-          className={inputCls}
-          placeholder="John Brown"
-        />
+        <input type="text" value={form.referenceName} onChange={set('referenceName')} className={inputCls} placeholder="John Brown" />
       </Field>
 
       <Field label="Reference Phone">
-        <input
-          type="tel"
-          value={form.referencePhone}
-          onChange={set('referencePhone')}
-          className={inputCls}
-          placeholder="04xx xxx xxx"
-        />
+        <input type="tel" value={form.referencePhone} onChange={set('referencePhone')} className={inputCls} placeholder="04xx xxx xxx" />
       </Field>
 
       <Field label="Postcodes you service" hint="Comma-separated, e.g. 2000, 2010">
-        <input
-          type="text"
-          required
-          value={form.postcodes}
-          onChange={set('postcodes')}
-          className={inputCls}
-          placeholder="2000, 2010, 2060"
-        />
+        <input type="text" required value={form.postcodes} onChange={set('postcodes')} className={inputCls} placeholder="2000, 2010, 2060" />
       </Field>
 
       <SectionHeading>Bank Details for Salary</SectionHeading>
 
       <Field label="BSB" hint="Format: XXX-XXX">
-        <input
-          type="text"
-          value={form.bankBsb}
-          onChange={set('bankBsb')}
-          className={inputCls}
-          placeholder="062-000"
-          maxLength={7}
-        />
+        <input type="text" value={form.bankBsb} onChange={set('bankBsb')} className={inputCls} placeholder="062-000" maxLength={7} />
       </Field>
 
       <Field label="Account Number">
-        <input
-          type="text"
-          value={form.bankAccountNumber}
-          onChange={set('bankAccountNumber')}
-          className={inputCls}
-          placeholder="12345678"
-        />
+        <input type="text" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={inputCls} placeholder="12345678" />
       </Field>
 
       {needsInsurance && (
         <>
           <SectionHeading>Insurance</SectionHeading>
-          <Field label="Public Liability Insurance Expiry">
+
+          <Field label="Policy Expiry Date">
             <input
               type="date"
               required
@@ -288,6 +283,39 @@ export function OnboardForm({
               min={new Date().toISOString().split('T')[0]}
             />
           </Field>
+
+          <Field label="Insurance Certificate" hint="PDF, JPG or PNG · max 15 MB — images auto-compressed">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            {insuranceFile ? (
+              <div className="flex items-center gap-3 border border-teal-300 bg-teal-50 rounded-xl px-4 py-3">
+                <FileText className="w-5 h-5 text-teal-600 shrink-0" />
+                <span className="text-sm text-teal-800 truncate flex-1">{insuranceFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => { setInsuranceFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  className="text-slate-400 hover:text-red-500 transition shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadStatus !== 'idle'}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl py-4 text-sm text-slate-500 hover:text-teal-600 transition disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                {uploadLabel ?? 'Upload certificate'}
+              </button>
+            )}
+          </Field>
         </>
       )}
 
@@ -295,14 +323,7 @@ export function OnboardForm({
         <>
           <SectionHeading>License / Certification</SectionHeading>
           <Field label="License or Certificate Number">
-            <input
-              type="text"
-              required
-              value={form.licenseNumber}
-              onChange={set('licenseNumber')}
-              className={inputCls}
-              placeholder="e.g. LIC-123456"
-            />
+            <input type="text" required value={form.licenseNumber} onChange={set('licenseNumber')} className={inputCls} placeholder="e.g. LIC-123456" />
           </Field>
         </>
       )}
@@ -317,9 +338,7 @@ export function OnboardForm({
               onChange={(e) => setForm((prev) => ({ ...prev, equipmentOwned: e.target.checked }))}
               className="w-5 h-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
             />
-            <span className="text-sm text-slate-700 font-medium">
-              I own my own equipment (mower, tools, etc.)
-            </span>
+            <span className="text-sm text-slate-700 font-medium">I own my own equipment (mower, tools, etc.)</span>
           </label>
         </>
       )}
@@ -335,10 +354,10 @@ export function OnboardForm({
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploadStatus !== 'idle'}
           className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Submitting…' : 'Submit Application'}
+          {loading ? (uploadStatus === 'uploading' ? 'Uploading document…' : 'Submitting…') : 'Submit Application'}
         </button>
       </div>
 

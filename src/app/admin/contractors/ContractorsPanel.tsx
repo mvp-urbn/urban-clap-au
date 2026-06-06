@@ -217,7 +217,7 @@ export function ContractorsPanel({ initialContractors }: { initialContractors: C
                       ABN
                     </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">
-                      Insurance Expiry
+                      Insurance
                     </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">
                       Postcodes
@@ -243,14 +243,26 @@ export function ContractorsPanel({ initialContractors }: { initialContractors: C
                       <td className="px-4 py-3 text-slate-600 font-mono text-xs hidden md:table-cell">
                         {c.abn ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 hidden lg:table-cell">
-                        {c.insurance_expiry
-                          ? new Date(c.insurance_expiry).toLocaleDateString('en-AU', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : '—'}
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-500">
+                            {c.insurance_expiry
+                              ? `Expires ${new Date(c.insurance_expiry).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : 'No expiry set'}
+                          </p>
+                          {c.insurance_document_url ? (
+                            <a
+                              href={`/api/contractor-doc?path=${encodeURIComponent(c.insurance_document_url)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-800 underline underline-offset-2"
+                            >
+                              View Certificate ↗
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-300">No document</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {c.service_postcodes?.length ? (

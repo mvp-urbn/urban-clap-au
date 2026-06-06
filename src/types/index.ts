@@ -19,6 +19,7 @@ export interface Profile {
   // Contractor-specific fields
   abn: string | null;
   insurance_expiry: string | null;
+  insurance_document_url: string | null;
   contractor_status: ContractorStatus | null;
   service_postcodes: string[] | null;
   contractor_categories: string[] | null;
