@@ -9,6 +9,7 @@ import {
   Clock,
   MapPin,
   Phone,
+  Wrench,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
@@ -254,9 +255,18 @@ export default async function HomePage() {
           <p className="text-xs text-slate-400">
             © {new Date().getFullYear()} Urban Clap AU Pty Ltd · ABN 00 000 000 000 · All prices include GST
           </p>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <Phone className="w-3.5 h-3.5" />
-            <span>1800 URBAN AU</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <Phone className="w-3.5 h-3.5" />
+              <span>1800 URBAN AU</span>
+            </div>
+            <Link
+              href="/contractor/signup"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:border-teal-400 px-3 py-1.5 rounded-lg transition"
+            >
+              <Wrench className="w-3 h-3" />
+              Contractor Portal
+            </Link>
           </div>
         </div>
       </footer>
