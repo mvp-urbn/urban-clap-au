@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   FlaskConical,
   Copy,
+  LayoutDashboard,
+  ShieldCheck,
+  ChevronRight,
 } from 'lucide-react';
 import { Booking, TIER_BADGE_COLORS } from '@/types';
 import { calculatePrice } from '@/hooks/usePricingCalculator';
@@ -377,6 +380,22 @@ export function DispatchDashboard({ initialBookings }: DispatchDashboardProps) {
             <p className="text-xs text-slate-400">Urban Clap AU · Admin Only</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <a
+              href="/admin"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+            <a
+              href="/admin/contractors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Contractors</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
             <div
               className={cn(
                 'flex items-center gap-1.5 rounded-full px-3 py-1 border',
