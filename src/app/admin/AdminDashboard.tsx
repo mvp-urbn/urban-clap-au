@@ -12,6 +12,7 @@ import {
   LogOut,
   RefreshCw,
   ChevronRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { Booking, BookingStatus, TIER_BADGE_COLORS } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -135,11 +136,19 @@ export function AdminDashboard({ initialBookings, stats }: AdminDashboardProps) 
           </div>
           <div className="flex items-center gap-2">
             <a
+              href="/admin/contractors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Contractors</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+            <a
               href="/admin/dispatch"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <TruckIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Dispatch Console</span>
+              <span className="hidden sm:inline">Dispatch</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </a>
             <Button variant="secondary" size="sm" onClick={handleRefresh} isLoading={isRefreshing}>

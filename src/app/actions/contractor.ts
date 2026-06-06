@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ContractorStatus } from '@/types';
 
 export async function saveContractorOnboarding({
   fullName,
@@ -137,4 +138,34 @@ export async function verifyJobOtp(bookingId: string, otp: string): Promise<{ su
   }
 
   return { success: true };
+}
+
+export async function getAllContractors() {
+  const admin = createAdminClient();
+
+  const { data: profiles, error } = await admin
+    .from('profiles')
+    .select('*')
+    .eq('role', 'contractor')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const emailMap = new Map(users.map((u) => [u.id, u.email ?? null]));
+
+  return (profiles ?? []).map((p) => ({
+    ...p,
+    email: emailMap.get(p.id) ?? null,
+  }));
+}
+
+export async function updateContractorStatus(contractorId: string, status: ContractorStatus) {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('profiles')
+    .update({ contractor_status: status })
+    .eq('id', contractorId);
+
+  if (error) throw new Error(error.message);
 }
