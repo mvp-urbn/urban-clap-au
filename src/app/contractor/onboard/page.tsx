@@ -7,13 +7,13 @@ export default async function ContractorOnboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/auth/login?next=/contractor/onboard');
+  if (!user) redirect('/contractor/login');
 
   const profile = await getContractorProfile();
 
   // Already approved — skip onboarding
   if (profile?.role === 'contractor' && profile.contractor_status === 'approved') {
-    redirect('/contractor/jobs');
+    redirect('/contractor/dashboard');
   }
 
   const defaultName =

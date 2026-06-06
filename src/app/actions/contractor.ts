@@ -10,12 +10,28 @@ export async function saveContractorOnboarding({
   abn,
   insuranceExpiry,
   servicePostcodes,
+  categories,
+  experienceYears,
+  referenceName,
+  referencePhone,
+  bankBsb,
+  bankAccountNumber,
+  licenseNumber,
+  equipmentOwned,
 }: {
   fullName: string;
   phone: string;
   abn: string;
   insuranceExpiry: string;
   servicePostcodes: string[];
+  categories: string[];
+  experienceYears: number;
+  referenceName: string;
+  referencePhone: string;
+  bankBsb: string;
+  bankAccountNumber: string;
+  licenseNumber: string;
+  equipmentOwned: boolean;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -29,13 +45,114 @@ export async function saveContractorOnboarding({
       full_name: fullName,
       phone_number: phone,
       abn,
-      insurance_expiry: insuranceExpiry,
+      insurance_expiry: insuranceExpiry || null,
       service_postcodes: servicePostcodes,
       contractor_status: 'pending',
+      contractor_categories: categories,
+      experience_years: experienceYears || null,
+      reference_name: referenceName || null,
+      reference_phone: referencePhone || null,
+      bank_bsb: bankBsb || null,
+      bank_account_number: bankAccountNumber || null,
+      license_number: licenseNumber || null,
+      equipment_owned: equipmentOwned,
     })
     .eq('id', user.id);
 
   if (error) throw new Error(error.message);
+}
+
+export async function saveBankDetails(bsb: string, accountNumber: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('profiles')
+    .update({ bank_bsb: bsb, bank_account_number: accountNumber })
+    .eq('id', user.id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function getOrCreateReferralCode(): Promise<string> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('referral_code')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.referral_code) return profile.referral_code;
+
+  const code = 'UCAU-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  await admin
+    .from('profiles')
+    .update({ referral_code: code })
+    .eq('id', user.id);
+
+  return code;
+}
+
+export async function getContractorDashboardData() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const admin = createAdminClient();
+
+  const [profileRes, jobsRes, { data: { users } }] = await Promise.all([
+    admin.from('profiles').select('*').eq('id', user.id).single(),
+    admin
+      .from('bookings')
+      .select(`
+        *,
+        services:service_id ( tier, category_name ),
+        profiles:customer_id ( full_name, phone_number )
+      `)
+      .eq('assigned_contractor_id', user.id)
+      .in('status', ['assigned', 'completed', 'cancelled'])
+      .order('scheduled_datetime', { ascending: true }),
+    admin.auth.admin.listUsers({ perPage: 1000 }),
+  ]);
+
+  const profile = profileRes.data;
+  const allJobs = jobsRes.data ?? [];
+
+  const emailMap = new Map((users ?? []).map((u) => [u.id, u.email ?? null]));
+  const email = emailMap.get(user.id) ?? null;
+
+  const now = new Date().toISOString();
+  const newJobs = allJobs.filter(
+    (j) => j.status === 'assigned' && j.scheduled_datetime >= now,
+  );
+  const history = allJobs.filter(
+    (j) => j.status === 'completed' || j.status === 'cancelled',
+  );
+
+  const totalEarningsCents = history
+    .filter((j) => j.status === 'completed')
+    .reduce((sum, j) => sum + Math.round(j.total_price_cents * 0.8), 0);
+
+  const reviewsRes = await admin
+    .from('reviews')
+    .select('rating, bookings:booking_id ( assigned_contractor_id )')
+    .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
+
+  const myReviews = (reviewsRes.data ?? []).filter(
+    (r) => (r.bookings as unknown as { assigned_contractor_id: string } | null)?.assigned_contractor_id === user.id,
+  );
+  const avgRating =
+    myReviews.length > 0
+      ? (myReviews.reduce((s, r) => s + r.rating, 0) / myReviews.length).toFixed(1)
+      : null;
+
+  return { profile, newJobs, history, totalEarningsCents, avgRating, email };
 }
 
 export async function getContractorProfile() {
@@ -108,7 +225,7 @@ export async function contractorCheckIn(bookingId: string, lat: number | null, l
     .eq('assigned_contractor_id', user.id);
 
   if (error) throw new Error(error.message);
-  return { lat, lng }; // passed through for future radius validation
+  return { lat, lng };
 }
 
 export async function verifyJobOtp(bookingId: string, otp: string): Promise<{ success: boolean; error?: string }> {
@@ -160,10 +277,6 @@ export async function getAllContractors() {
   }));
 }
 
-// Returns reviews for this contractor's completed jobs.
-// Default window: 15 days. If the customer who left the review also has an upcoming
-// booking (they're "active/busy"), the window shrinks to 9 days so the contractor's
-// feed stays fresh.
 export async function getContractorReviews() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -171,7 +284,6 @@ export async function getContractorReviews() {
 
   const admin = createAdminClient();
 
-  // Pull all reviews with their booking so we can filter by assigned_contractor_id
   const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await admin
     .from('reviews')
@@ -187,15 +299,13 @@ export async function getContractorReviews() {
 
   if (error) throw new Error(error.message);
 
-  // Filter to this contractor's jobs
   const mine = (data ?? []).filter(
-    (r) => (r.bookings as any)?.assigned_contractor_id === user.id,
+    (r) => (r.bookings as unknown as { assigned_contractor_id: string } | null)?.assigned_contractor_id === user.id,
   );
 
   if (mine.length === 0) return [];
 
-  // Collect unique customer IDs to check for upcoming bookings (the "busy" signal)
-  const customerIds = [...new Set(mine.map((r) => (r.bookings as any)?.customer_id).filter(Boolean))];
+  const customerIds = [...new Set(mine.map((r) => (r.bookings as unknown as { customer_id: string } | null)?.customer_id).filter(Boolean))] as string[];
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const { data: upcoming } = await admin
     .from('bookings')
@@ -206,15 +316,14 @@ export async function getContractorReviews() {
 
   const busyCustomers = new Set((upcoming ?? []).map((b) => b.customer_id));
 
-  // 9-day cutoff for reviews from busy customers
   const nineDaysAgo = new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString();
 
   return mine.filter((r) => {
-    const customerId = (r.bookings as any)?.customer_id;
+    const customerId = (r.bookings as unknown as { customer_id: string } | null)?.customer_id;
     if (customerId && busyCustomers.has(customerId)) {
       return r.created_at >= nineDaysAgo;
     }
-    return true; // falls within 15-day window already applied above
+    return true;
   });
 }
 

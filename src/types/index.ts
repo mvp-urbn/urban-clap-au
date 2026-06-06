@@ -21,6 +21,16 @@ export interface Profile {
   insurance_expiry: string | null;
   contractor_status: ContractorStatus | null;
   service_postcodes: string[] | null;
+  contractor_categories: string[] | null;
+  bank_bsb: string | null;
+  bank_account_number: string | null;
+  experience_years: number | null;
+  reference_name: string | null;
+  reference_phone: string | null;
+  license_number: string | null;
+  equipment_owned: boolean | null;
+  referral_code: string | null;
+  referred_by: string | null;
 }
 
 export interface Service {

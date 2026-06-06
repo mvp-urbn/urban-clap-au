@@ -6,7 +6,7 @@ export default async function ContractorRootPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/auth/login?next=/contractor');
+  if (!user) redirect('/contractor/login');
 
   const profile = await getContractorProfile();
 
@@ -15,7 +15,7 @@ export default async function ContractorRootPage() {
   }
 
   if (profile.contractor_status === 'approved') {
-    redirect('/contractor/jobs');
+    redirect('/contractor/dashboard');
   }
 
   // Pending or suspended — show status page

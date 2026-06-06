@@ -5,7 +5,7 @@ export default function ContractorLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-slate-50">
       <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
@@ -17,14 +17,6 @@ export default function ContractorLayout({ children }: { children: React.ReactNo
               </span>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/contractor/jobs"
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition"
-            >
-              My Jobs
-            </Link>
-          </div>
         </div>
       </nav>
       {children}
