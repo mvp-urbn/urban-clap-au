@@ -4,15 +4,14 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Mail, Wrench } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { contractorSignupNoEmail } from '@/app/actions/contractor';
 
 type Mode = 'signup' | 'login';
 
 export default function ContractorSignupPage() {
   const [mode, setMode] = useState<Mode>('signup');
-  const [step, setStep] = useState<1 | 2>(1);
-  const [submittedEmail, setSubmittedEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +29,6 @@ export default function ContractorSignupPage() {
   const switchMode = (next: Mode) => {
     setMode(next);
     setError('');
-    setStep(1);
     setForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' });
   };
 
@@ -48,25 +46,36 @@ export default function ContractorSignupPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+
+    // Use admin-based signup so no email confirmation is needed
+    const result = await contractorSignupNoEmail({
+      fullName: form.fullName,
+      phone: form.phone,
       email: form.email,
       password: form.password,
-      options: {
-        data: { full_name: form.fullName, phone_number: form.phone },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/contractor/onboard`,
-      },
     });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    if (result.error) {
+      setError(result.error);
       setLoading(false);
       return;
     }
 
-    setSubmittedEmail(form.email);
-    setStep(2);
-    setLoading(false);
+    // Auto sign in immediately after account creation
+    const supabase = createClient();
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    });
+
+    if (loginError) {
+      setError('Account created — please sign in.');
+      setLoading(false);
+      switchMode('login');
+      return;
+    }
+
+    window.location.href = '/contractor/onboard';
   };
 
   const handleLogin = async (e: { preventDefault(): void }) => {
@@ -88,33 +97,6 @@ export default function ContractorSignupPage() {
 
     window.location.href = '/contractor';
   };
-
-  // Email confirmation screen after signup
-  if (mode === 'signup' && step === 2) {
-    return (
-      <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center mx-auto">
-            <Mail className="w-8 h-8 text-teal-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Check your email!</h1>
-            <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-              We sent a confirmation link to{' '}
-              <span className="font-semibold text-slate-700">{submittedEmail}</span>.
-              Click it to verify your account, then complete your contractor profile.
-            </p>
-          </div>
-          <button
-            onClick={() => switchMode('login')}
-            className="inline-block bg-teal-600 text-white font-semibold py-3 px-6 rounded-xl hover:bg-teal-700 transition"
-          >
-            Back to Sign In
-          </button>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-10">

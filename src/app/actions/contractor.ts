@@ -4,6 +4,31 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ContractorStatus } from '@/types';
 
+// Bypasses email confirmation — used until a verified sending domain is set up in Resend.
+// Creates the user via admin API (email auto-confirmed), so they can log in immediately.
+export async function contractorSignupNoEmail({
+  fullName,
+  phone,
+  email,
+  password,
+}: {
+  fullName: string;
+  phone: string;
+  email: string;
+  password: string;
+}): Promise<{ error: string | null }> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, phone_number: phone },
+  });
+  if (error) return { error: error.message };
+  if (!data.user) return { error: 'Account creation failed' };
+  return { error: null };
+}
+
 export async function saveContractorOnboarding({
   fullName,
   phone,
