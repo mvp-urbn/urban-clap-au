@@ -60,7 +60,7 @@ Silver 1.0× · Gold 1.4× · Pro 1.8× · All prices AUD incl. GST
 8. ~~Contractor portal~~ ✓ done — onboarding, job board, GPS check-in, OTP proof of work (Session 8–9)
 9. Stripe setup — add real keys to `.env.local` + Vercel to unlock Step 5 payment (est. 10 min)
 10. Stripe webhook (`/api/webhooks/stripe`) — update booking status after Stripe payment confirmed
-11. Admin contractor approval UI — currently approved via Supabase SQL; needs a UI in `/admin`
+11. ~~Admin contractor approval UI~~ ✓ done — `/admin/contractors` with approve/suspend/reinstate actions
 12. Resend domain verification — needs a domain before emails can reach real customers
 
 ---
@@ -317,6 +317,30 @@ grant all on public.reviews to service_role;
 3. Admin contractor approval UI in `/admin` dashboard (currently: approve via Supabase SQL)
 4. Push to GitHub + deploy to Vercel
 5. Resend domain verification → real outbound email
+
+### 2026-06-07 — Session 10
+
+**Admin contractor approval UI (`/admin/contractors`)**
+- New server actions in `contractor.ts`: `getAllContractors()` (fetches all contractor profiles + emails via `auth.admin.listUsers`) and `updateContractorStatus(id, status)`
+- New page `/admin/contractors` — same PIN-auth guard as the rest of admin
+- `ContractorsPanel.tsx` client component:
+  - Stats row: Total / Pending / Approved / Suspended
+  - Filter tabs: All / Pending / Approved / Suspended (with counts)
+  - Responsive table: Name + phone, Email, ABN, Insurance Expiry, Postcodes, Status badge, action buttons
+  - Actions: Approve (pending → approved), Suspend (approved → suspended), Reinstate (suspended → approved) — all optimistic-UI with revert on error
+- "Contractors" nav link added to AdminDashboard top nav (between Dashboard and Dispatch)
+- Build: 16 routes, zero TypeScript errors, deployed to production
+
+**GitHub → Vercel auto-deploy (item 5)**
+- `npx vercel git connect` fails with "Failed to connect" — the Vercel GitHub App is not yet authorized for the `mvp-urbn` org under the `tioatrs-projects` Vercel team
+- Manual fix required: Vercel Dashboard → Settings → Integrations → GitHub → Configure → add `mvp-urbn/urban-clap-au` to repository access → then run `npx vercel git connect https://github.com/mvp-urbn/urban-clap-au`
+- Until then: continue using `npx vercel --prod --yes` + `git push origin main` separately
+
+**Left off:**
+1. Add real Stripe keys to `.env.local` AND Vercel → unlocks Step 5 payment
+2. Wire `/api/webhooks/stripe` → update booking status after Stripe payment confirmed
+3. GitHub → Vercel auto-deploy: needs one-time browser fix in Vercel Settings (see above)
+4. Resend domain verification → real outbound email (needs a domain)
 
 ### 2026-06-06 — Session 9
 
