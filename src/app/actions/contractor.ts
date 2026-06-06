@@ -160,6 +160,64 @@ export async function getAllContractors() {
   }));
 }
 
+// Returns reviews for this contractor's completed jobs.
+// Default window: 15 days. If the customer who left the review also has an upcoming
+// booking (they're "active/busy"), the window shrinks to 9 days so the contractor's
+// feed stays fresh.
+export async function getContractorReviews() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const admin = createAdminClient();
+
+  // Pull all reviews with their booking so we can filter by assigned_contractor_id
+  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await admin
+    .from('reviews')
+    .select(`
+      id, booking_id, rating, comment, created_at,
+      bookings:booking_id (
+        id, suburb, postcode, scheduled_datetime, assigned_contractor_id, customer_id,
+        services:service_id ( tier )
+      )
+    `)
+    .gte('created_at', fifteenDaysAgo)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  // Filter to this contractor's jobs
+  const mine = (data ?? []).filter(
+    (r) => (r.bookings as any)?.assigned_contractor_id === user.id,
+  );
+
+  if (mine.length === 0) return [];
+
+  // Collect unique customer IDs to check for upcoming bookings (the "busy" signal)
+  const customerIds = [...new Set(mine.map((r) => (r.bookings as any)?.customer_id).filter(Boolean))];
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const { data: upcoming } = await admin
+    .from('bookings')
+    .select('customer_id')
+    .in('customer_id', customerIds)
+    .in('status', ['pending_dispatch', 'assigned'])
+    .gte('scheduled_datetime', tomorrow);
+
+  const busyCustomers = new Set((upcoming ?? []).map((b) => b.customer_id));
+
+  // 9-day cutoff for reviews from busy customers
+  const nineDaysAgo = new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString();
+
+  return mine.filter((r) => {
+    const customerId = (r.bookings as any)?.customer_id;
+    if (customerId && busyCustomers.has(customerId)) {
+      return r.created_at >= nineDaysAgo;
+    }
+    return true; // falls within 15-day window already applied above
+  });
+}
+
 export async function updateContractorStatus(contractorId: string, status: ContractorStatus) {
   const admin = createAdminClient();
   const { error } = await admin

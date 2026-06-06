@@ -284,14 +284,18 @@ export async function submitReview(
 
 export async function getAllReviews() {
   const admin = createAdminClient();
-  // customer name comes from bookings→profiles (bookings.customer_id → profiles.id is a clean FK).
-  // We don't join reviews.customer_id→profiles directly because the original reviews table
-  // was created with customer_id referencing auth.users (invisible to PostgREST).
+  // customer name via bookings→profiles (bookings.customer_id → profiles.id, visible FK).
+  // contractor name via bookings→contractor alias on assigned_contractor_id → profiles.id.
   const { data, error } = await admin
     .from('reviews')
     .select(`
       id, booking_id, rating, comment, created_at,
-      bookings:booking_id ( suburb, postcode, scheduled_datetime, profiles:customer_id ( full_name ), services:service_id ( tier ) )
+      bookings:booking_id (
+        suburb, postcode, scheduled_datetime,
+        profiles:customer_id ( full_name ),
+        contractor:assigned_contractor_id ( full_name ),
+        services:service_id ( tier )
+      )
     `)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);

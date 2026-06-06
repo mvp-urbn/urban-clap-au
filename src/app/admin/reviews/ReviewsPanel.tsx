@@ -243,6 +243,9 @@ export function ReviewsPanel({ initialReviews }: { initialReviews: ReviewRow[] }
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">
                       Tier
                     </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">
+                      Cleaner
+                    </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Rating
                     </th>
@@ -259,6 +262,7 @@ export function ReviewsPanel({ initialReviews }: { initialReviews: ReviewRow[] }
                     const booking = r.bookings as any;
                     const tier = booking?.services?.tier ?? '—';
                     const customerName = booking?.profiles?.full_name ?? '—';
+                    const contractorName = booking?.contractor?.full_name ?? '—';
                     return (
                       <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-800">
@@ -273,6 +277,16 @@ export function ReviewsPanel({ initialReviews }: { initialReviews: ReviewRow[] }
                               {tier}
                             </span>
                           ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className={cn(
+                            'text-xs font-medium px-2 py-0.5 rounded-full',
+                            contractorName === '—'
+                              ? 'bg-slate-100 text-slate-400'
+                              : 'bg-teal-50 text-teal-700'
+                          )}>
+                            {contractorName}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <StarRow rating={r.rating} />

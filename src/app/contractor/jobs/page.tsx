@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarDays, MapPin, Package, ChevronRight, ClipboardList } from 'lucide-react';
+import { CalendarDays, MapPin, Package, ChevronRight, ClipboardList, Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getContractorProfile, getContractorJobs } from '@/app/actions/contractor';
 import { calculatePrice } from '@/hooks/usePricingCalculator';
@@ -55,10 +55,19 @@ export default async function ContractorJobsPage() {
           <p className="text-slate-500 text-sm mt-1">
             {active.length} active · {completed.length} completed
           </p>
-          <div className="mt-3 inline-flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm shadow-sm">
-            <span className="text-slate-600 truncate max-w-[180px]">{displayName}</span>
-            <span className="text-slate-200">·</span>
-            <SignOutButton />
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm shadow-sm">
+              <span className="text-slate-600 truncate max-w-[180px]">{displayName}</span>
+              <span className="text-slate-200">·</span>
+              <SignOutButton />
+            </div>
+            <Link
+              href="/contractor/reviews"
+              className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-colors"
+            >
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              My Reviews
+            </Link>
           </div>
         </div>
         <div className="text-right text-sm">
