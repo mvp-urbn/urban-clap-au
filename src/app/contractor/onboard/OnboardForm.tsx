@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { saveContractorOnboarding } from '@/app/actions/contractor';
 import { CONTRACTOR_CATEGORIES } from '@/lib/contractor-categories';
@@ -36,16 +35,19 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function OnboardForm({ defaultName }: { defaultName: string }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+export function OnboardForm({
+  defaultName,
+  defaultPhone,
+}: {
+  defaultName: string;
+  defaultPhone: string;
+}) {
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const [form, setForm] = useState({
-    fullName: defaultName,
-    phone: '',
     abn: '',
     insuranceExpiry: '',
     postcodes: '',
@@ -86,17 +88,13 @@ export function OnboardForm({ defaultName }: { defaultName: string }) {
     setStep(2);
   };
 
-  const handleSubmit = (e: { preventDefault(): void }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     const abn = form.abn.replace(/\s/g, '');
     if (!/^\d{11}$/.test(abn)) {
       setError('ABN must be 11 digits (e.g. 51 824 753 556)');
-      return;
-    }
-    if (!form.phone.trim()) {
-      setError('Phone number is required');
       return;
     }
     if (needsInsurance && !form.insuranceExpiry) {
@@ -118,31 +116,28 @@ export function OnboardForm({ defaultName }: { defaultName: string }) {
       return;
     }
 
-    const experienceYears = parseInt(form.experienceYears, 10) || 0;
-
-    startTransition(async () => {
-      try {
-        await saveContractorOnboarding({
-          fullName: form.fullName.trim(),
-          phone: form.phone.trim(),
-          abn,
-          insuranceExpiry: form.insuranceExpiry,
-          servicePostcodes,
-          categories: selectedCategories,
-          experienceYears,
-          referenceName: form.referenceName.trim(),
-          referencePhone: form.referencePhone.trim(),
-          bankBsb: form.bankBsb.trim(),
-          bankAccountNumber: form.bankAccountNumber.trim(),
-          licenseNumber: form.licenseNumber.trim(),
-          equipmentOwned: form.equipmentOwned,
-        });
-        router.push('/contractor/dashboard');
-        router.refresh();
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Something went wrong');
-      }
-    });
+    setLoading(true);
+    try {
+      await saveContractorOnboarding({
+        fullName: defaultName,
+        phone: defaultPhone,
+        abn,
+        insuranceExpiry: form.insuranceExpiry,
+        servicePostcodes,
+        categories: selectedCategories,
+        experienceYears: parseInt(form.experienceYears, 10) || 0,
+        referenceName: form.referenceName.trim(),
+        referencePhone: form.referencePhone.trim(),
+        bankBsb: form.bankBsb.trim(),
+        bankAccountNumber: form.bankAccountNumber.trim(),
+        licenseNumber: form.licenseNumber.trim(),
+        equipmentOwned: form.equipmentOwned,
+      });
+      window.location.href = '/contractor';
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong — please try again');
+      setLoading(false);
+    }
   };
 
   if (step === 1) {
@@ -200,29 +195,7 @@ export function OnboardForm({ defaultName }: { defaultName: string }) {
         </div>
       )}
 
-      <SectionHeading>Basic Information</SectionHeading>
-
-      <Field label="Full name">
-        <input
-          type="text"
-          required
-          value={form.fullName}
-          onChange={set('fullName')}
-          className={inputCls}
-          placeholder="Jane Smith"
-        />
-      </Field>
-
-      <Field label="Mobile phone">
-        <input
-          type="tel"
-          required
-          value={form.phone}
-          onChange={set('phone')}
-          className={inputCls}
-          placeholder="04xx xxx xxx"
-        />
-      </Field>
+      <SectionHeading>Professional Details</SectionHeading>
 
       <Field label="ABN (11 digits)" hint="Spaces OK">
         <input
@@ -239,7 +212,7 @@ export function OnboardForm({ defaultName }: { defaultName: string }) {
       <Field label="Years of Experience">
         <input
           type="number"
-          min={1}
+          min={0}
           max={40}
           value={form.experienceYears}
           onChange={set('experienceYears')}
@@ -355,21 +328,22 @@ export function OnboardForm({ defaultName }: { defaultName: string }) {
         <button
           type="button"
           onClick={() => setStep(1)}
-          className="flex-1 border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition"
+          disabled={loading}
+          className="flex-1 border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition disabled:opacity-40"
         >
           Back
         </button>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={loading}
           className="flex-1 bg-teal-600 text-white font-semibold py-3 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isPending ? 'Submitting…' : 'Submit Application'}
+          {loading ? 'Submitting…' : 'Submit Application'}
         </button>
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        By submitting you confirm your details are correct. We will verify your ABN and insurance before approving your account.
+        By submitting you confirm your details are correct. We will verify your ABN before approving your account.
       </p>
     </form>
   );

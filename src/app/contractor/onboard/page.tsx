@@ -20,13 +20,17 @@ export default async function ContractorOnboardPage() {
     (user.user_metadata?.full_name as string | undefined) ??
     profile?.full_name ??
     '';
+  const defaultPhone =
+    (user.user_metadata?.phone_number as string | undefined) ??
+    profile?.phone_number ??
+    '';
 
   return (
     <main className="max-w-lg mx-auto px-4 py-10 space-y-8">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">Become a Contractor</h1>
+        <h1 className="text-2xl font-extrabold text-slate-900">Complete Your Profile</h1>
         <p className="text-slate-500 text-sm mt-1 leading-relaxed">
-          Fill in your details below. Once approved, you&apos;ll get access to the job board and can start earning.
+          A few more details before you can start taking jobs. Once submitted, we&apos;ll review your application within 1 business day.
         </p>
       </div>
 
@@ -40,7 +44,7 @@ export default async function ContractorOnboardPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <OnboardForm defaultName={defaultName} />
+        <OnboardForm defaultName={defaultName} defaultPhone={defaultPhone} />
       </div>
     </main>
   );
